@@ -1,0 +1,256 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            .tooltip {
+                position: absolute;	
+                text-align: center; 
+                width: 450px;					
+                height: 40px;									
+                font: 15px sans-serif;
+                font-weight: bold;
+                background: lightsteelblue;	
+                border: 0px;		
+                border-radius: 10px;			
+                pointer-events: none;
+            }
+            .grid line {
+                stroke: lightgrey;
+                stroke-opacity: 2.0 ;
+                shape-rendering: crispEdges;
+            }
+        </style>
+        <script src="https://d3js.org/d3.v5.js"></script>
+    </head>
+    <body>
+        <h4> WAGE DIFFERENCES</h4>
+        <div id="graph"></div>
+        
+        <script>
+            //graph margins
+            var margin = {top: 10, right: 30, bottom: 90, left: 600},
+            width = 2500 - margin.left - margin.right,
+            height = 3000 - margin.top - margin.bottom;
+
+            // creating SVG
+            var svg = d3.select("body").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+            
+            //Tooltip 
+            var div = d3.select("body")
+            .append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0); 
+            
+            d3.csv("cpsaat2019.csv").then(function(data){
+                
+                console.log(data)
+                
+              
+                data.forEach(function(d) {
+                    d.men = +d.men
+                    d.women = +d.women
+                })
+                
+                // Creating X axis scale
+                var x = d3.scaleLinear()
+                    .domain([500, 3000])
+                    .range([ 0, width])
+                
+                //Creating Y axis scale  
+                var y = d3.scaleBand()
+                    .domain(data.map(function(d){return d.occupation}))
+                    .range([height,0])
+                    .padding(1)    
+                
+                //Creating X axis gridlines (We dont need y axis since the data is printed only left to right)      
+                function make_x_grid() {
+                    return d3.axisBottom(x).ticks(20); 
+                }
+                
+                //Appending gridlines first so that the gridlines appear below the rest of the graph 
+                svg.append("g")			
+                  .attr("class", "grid")
+                  .attr("transform", "translate(0," + height + ")")
+                  .call(make_x_grid()
+                      .tickSize(-height)
+                      .tickFormat("")
+                )
+                
+                
+                //Adds the x Axis to the graph, translating to view the text easier  
+                svg.append("g")
+                   .attr("transform", "translate(0," + height + ")")
+                   .call(d3.axisBottom(x))
+                   .selectAll("text") 
+                   .attr("font-size","20px")
+                   //.attr("transform", "translate(-10,0)rotate(-45)")
+                   //.style("text-anchor", "end")
+                  
+                //adding y axis 
+                svg.append("g")
+                    .call(d3.axisLeft(y))
+                    .attr("font-size","20px")
+                  
+                
+                //Line
+                svg.selectAll("myline")
+                    .data(data)
+                    .enter()
+                    .append("line")
+                        .attr("x1", function(d) {return x(d.women)} )
+                        .attr("x2", function(d) {return x(d.men)} ) 
+                        .attr("y1", function(d) {return y(d.occupation)}  )
+                        .attr("y2", function(d) {return y(d.occupation); })
+                        .attr("stroke", "grey")
+                        .attr("fill" , "white")
+                        .style("opacity" , 0.5)
+                        .attr("stroke-width", 20)
+                    .on("mouseover",function(d){
+                        d3.select(this).transition().duration(200).style("opacity" , 1)
+                        div.transition()
+                            .duration(500)
+                            .style("opacity" , 0.9)
+                            div.html(d.occupation + "<br>" + "Wage difference(weekly):" + " $" + Math.abs(d.men - d.women))
+                            .style("left", (d3.event.pageX - 200 ) + "px")	//Changing x and y values so we dont obscure mouse pointer view 	
+                            .style("top", (d3.event.pageY - 50) + "px");//These are used so tooltip appears near county we are observing 
+                    })
+                    .on("mouseout",function(d){
+                        d3.select(this).transition().duration(200).style("opacity", 0.5)
+                        div.transition()
+                            .duration(500)
+                            .style("opacity", 0); 
+                          
+                    })
+        
+                //girls
+                svg.selectAll("girls")
+                    .data(data)
+                    .enter()
+                    .append("circle")
+                        .attr("cx", function(d) {return x(d.women)} )
+                        .attr("cy", function(d){ return y(d.occupation)})
+                        .attr("r", "10")
+                        .style("fill", "Pink")
+                        .attr("stroke", "Red")
+                    .on("mouseover",function(d){
+                        d3.select(this).transition().duration(200).attr("r" , 15)
+                        div.transition()
+                            .duration(200)
+                            .style("opacity" , 1)
+                            div.html(d.occupation + "<br>" + "Female wage :" + " $" + d.women + " per week")
+                            .style("left", (d3.event.pageX - 200) + "px")	//Changing x and y values so we dont obscure mouse pointer view 	
+                            .style("top", (d3.event.pageY - 50) + "px");//These are used so tooltip appears near county we are observing 
+                    })
+                    .on("mouseout",function(d){
+                        d3.select(this).transition().duration(200).attr("r", 10)
+                        div.transition()
+                             .duration(500)
+                            .style("opacity", 0); 
+                    })
+                
+                //guys 
+                svg.selectAll("guys")
+                    .data(data)
+                    .enter()
+                    .append("circle")
+                        .attr("cx", function(d) {return x(d.men)} )
+                        .attr("cy", function(d){ return y(d.occupation)})
+                        .attr("r", "10")
+                        .style("fill", "Cyan")
+                        .attr("stroke", "Blue")
+                    .on("mouseover",function(d){
+                        d3.select(this).transition().duration(200).attr("r" , 15)
+                        div.transition()
+                            .duration(200)
+                            .style("opacity" , 1)
+                            div.html(d.occupation + "<br>" + "Male wage :" + " $" + d.men + " per week")
+                            .style("left", (d3.event.pageX - 200) + "px")	//Changing x and y values so we dont obscure mouse pointer view 	
+                            .style("top", (d3.event.pageY - 50) + "px");//These are used so tooltip appears near county we are observing 
+                    })
+                    .on("mouseout",function(d){
+                        d3.select(this).transition().duration(200).attr("r", 10)
+                        div.transition()
+                             .duration(500)
+                             .style("opacity", 0); 
+                    })
+                
+                //Yaxis title top 
+                svg.append("text")
+                    .attr("x" , -120)
+                    .attr("y", 10)
+                    .attr("font-size","20px")
+                    .text("Occupation")
+                    .attr("font-family", "sans-serif")
+                    .attr("font-weight", "bold")
+                
+                //Yaxis title top 
+                svg.append("text")
+                    .attr("x" , -120)
+                    .attr("y", 10)
+                    .attr("font-size","20px")
+                    .text("Occupation")
+                    .attr("font-family", "sans-serif")
+                    .attr("font-weight", "bold")
+                //Yaxis bottom
+                svg.append("text")
+                    .attr("x" , -120)
+                    .attr("y", height)
+                    .attr("font-size","20px")
+                    .text("Occupation")
+                    .attr("font-family", "sans-serif")
+                    .attr("font-weight", "bold")
+                
+                //Y axis left label 
+                svg.append("text")
+                    .attr("x" ,-7)
+                    .attr("y", height + 23)
+                    .attr("font-size","22px")
+                    .text("$0") 
+                
+                //X axis main label
+                svg.append("text")
+                    .attr("x", (width / 2) )
+                    .attr("y", height + 50)
+                    .attr("font-size", "20px")
+                    .attr("font-weight", "bold")
+                    .text("Hourly Wage")
+                     
+                // Legend
+                svg.append("circle")
+                    .attr("cx",1000)
+                    .attr("cy",20)
+                    .attr("r", "8")
+                    .style("fill", "Cyan")
+                    .attr("stroke", "blue")
+                svg.append("text")
+                    .attr("x",1020)
+                    .attr("y",25)
+                    .text("Male")
+                    .style("font-size", "10px")
+                 svg.append("circle")
+                    .attr("cx",1000)
+                    .attr("cy",40)
+                    .attr("r", "8")
+                    .style("fill", "Pink")
+                    .attr("stroke", "Red")
+                    .append("text")
+                    .attr("x",1020)
+                    .attr("y",300)
+                svg.append("text")
+                    .attr("x",1020)
+                    .attr("y",45)
+                    .text("Female")
+                    .style("font-size", "10px")   
+                    
+                    
+               
+                
+            })
+        </script>
+        
+    </body>
+</html>
